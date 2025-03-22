@@ -789,12 +789,10 @@ app.post("/Editprofile", authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName, emailOrmobile } = req.body;
 
-    // ✅ Ensure `emailOrmobile` exists before using `.match()`
     if (!emailOrmobile) {
       return res.status(400).json({ error: "Email or mobile number is required." });
     }
 
-    // ✅ Email and Mobile Number Validation
     const mobileRegex = /^[6-9]\d{9}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -802,9 +800,12 @@ app.post("/Editprofile", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Enter a valid email or 10-digit mobile number." });
     }
 
-    // ✅ Save Profile to Database
-    const profile = new Profile({ firstName, lastName, emailOrmobile, userId: req.user.id  });
-    await profile.save();
+    // ✅ Instead of creating a new profile, update the existing one
+    const profile = await Profile.findOneAndUpdate(
+      { userId: req.user.id }, // Find by userId
+      { firstName, lastName, emailOrmobile }, // Update fields
+      { new: true, upsert: true } // Return updated document, create if not exists
+    );
 
     res.json({ message: "Profile saved successfully", profile });
   } catch (error) {
@@ -813,16 +814,33 @@ app.post("/Editprofile", authenticateToken, async (req, res) => {
   }
 });
 
+
   // API to Get Profile
+  // app.get("/Profile", authenticateToken, async (req, res) => {
+  //   try {
+  //     const profiles = await Profile.find({ userId: req.user.id }); // Get all profiles
+  //     if (profiles.length === 0) return res.status(404).json({ message: "No profiles found" });
+  //     res.json(profiles);
+  //   } catch (error) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // });
+
   app.get("/Profile", authenticateToken, async (req, res) => {
     try {
-      const profiles = await Profile.find({ userId: req.user.id }); // Get all profiles
-      if (profiles.length === 0) return res.status(404).json({ message: "No profiles found" });
-      res.json(profiles);
+      const profile = await Profile.findOne({ userId: req.user.id }); // Get the user profile
+  
+      if (!profile) {
+        return res.status(200).json({ message: "No profile found", profile: null }); // Send null instead of 404
+      }
+  
+      res.json(profile); // Send the profile directly
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
+  
+  
 
 
   // Address Schema & Model (Embedded Here)
