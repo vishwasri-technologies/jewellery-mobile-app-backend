@@ -674,6 +674,26 @@ app.get("/canceled-orders", authenticateToken, async (req, res) => {
 });
 
 
+// Delete User Account
+app.delete("/DeleteAccount", authenticateToken, async (req, res) => {
+  try {
+    // Extract user ID from JWT token
+    const userId = req.user.id;
+
+    // Find and delete the user
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting account", error });
+  }
+});
+
+
+
 
 
 // Start the server
