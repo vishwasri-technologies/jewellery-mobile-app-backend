@@ -686,6 +686,12 @@ app.delete("/DeleteAccount", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+     // Delete user's profile
+     await Profile.deleteOne({ userId });
+
+     // Delete user's addresses
+     await Address.deleteMany({ userId });
+
     res.status(200).json({ message: "Account deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting account", error });
