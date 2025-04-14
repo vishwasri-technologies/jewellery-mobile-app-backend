@@ -459,13 +459,12 @@ app.get("/razorpay-checkout", authenticateToken, async (req, res) => {
     const razorpayOrder = await razorpay.orders.create(options);
 
     // Redirect user to Razorpay hosted checkout page
-    res.redirect(`http://api.razorpay.com/v1/checkout?order_id=${razorpayOrder.id}`);
+    res.redirect(`https://api.razorpay.com/v1/checkout?order_id=${razorpayOrder.id}`);
   } catch (error) {
     console.error("❌ Error creating Razorpay order:", error);
     res.status(500).send("Error creating order");
   }
 });
-
 
 
 app.post("/verify-payment", authenticateToken, async (req, res) => {
