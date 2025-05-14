@@ -7,8 +7,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
 require("dotenv").config();
 
 // Initialize the app
@@ -18,8 +16,9 @@ app.use(cors());
 app.use(express.json());  // ✅ Ensure JSON is parsed properly
 app.use(express.urlencoded({ extended: true })); // ✅ Optional for form data
 
+
 // MongoDB connection
-const dbURI = "mongodb+srv://Akshaya:Akshaya9876@vishwasri.s7v4g.mongodb.net/Jwellery-mobile-app?retryWrites=true&w=majority&appName=Vishwasri"; // Replace with your MongoDB URI
+const dbURI = "mongodb+srv://vishwasritechnologies:chandu%402003@vishwasri01.7wesl.mongodb.net/Jwellery-mobile-app?retryWrites=true&w=majority&appName=Vishwasri01"; // Replace with your MongoDB URI
 mongoose.connect(dbURI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((error) => console.log("MongoDB connection error:", error));
@@ -185,17 +184,6 @@ app.post("/Editprofile", authenticateToken, async (req, res) => {
 });
 
 
-  // API to Get Profile
-  // app.get("/Profile", authenticateToken, async (req, res) => {
-  //   try {
-  //     const profiles = await Profile.find({ userId: req.user.id }); // Get all profiles
-  //     if (profiles.length === 0) return res.status(404).json({ message: "No profiles found" });
-  //     res.json(profiles);
-  //   } catch (error) {
-  //     res.status(500).json({ error: error.message });
-  //   }
-  // });
-
   app.get("/Profile", authenticateToken, async (req, res) => {
     try {
       const profile = await Profile.findOne({ userId: req.user.id }); // Get the user profile
@@ -348,12 +336,6 @@ const OrderSchema = new mongoose.Schema({
 });
 const Order = mongoose.model("Order", OrderSchema);
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
 app.post("/Cart",  authenticateToken, async (req, res) => {
   try {
 
@@ -362,12 +344,12 @@ app.post("/Cart",  authenticateToken, async (req, res) => {
     const { items, deliveryAddress, method } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error("❌ Cart is empty or not an array:", items);
+      console.error(" Cart is empty or not an array:", items);
       return res.status(400).json({ error: "Cart cannot be empty" });
     }
 
     if (!deliveryAddress) {
-      console.error("❌ Delivery address missing!");
+      console.error(" Delivery address missing!");
       return res.status(400).json({ error: "Delivery address is required" });
     }
 
@@ -397,116 +379,20 @@ app.post("/Cart",  authenticateToken, async (req, res) => {
     await newOrder.save();
     console.log("✅ Order stored successfully:", newOrder);
 
-    // // ✅ Check if order ID exists
-    // if (!newOrder._id) {
-    //   throw new Error("Order ID missing after storing!");
-    // }
-
-    // ✅ Create a Razorpay Order
-const options = {
-  amount: Math.round(totalAmount * 100), // Convert to paisa and ensure integer
-  currency: "INR",
-  receipt: `receipt_${newOrder._id}`,
-  payment_capture: 1,
-};
-
-    console.log("📤 Creating Razorpay Order...");
-    
-    let razorpayOrder;
-    try {
-      razorpayOrder = await razorpay.orders.create(options);
-      console.log("✅ Razorpay Order Created:", razorpayOrder);
-    } catch (razorpayError) {
-      console.error("❌ Error creating Razorpay order:", razorpayError);
-      return res.status(500).json({ error: "Failed to create Razorpay order", details: razorpayError.message });
-    }
-
-    // ✅ Update the order with Razorpay order ID
-    newOrder.orderId = razorpayOrder.id;
-    await newOrder.save();
 
     // ✅ Return full order data including `_id`
     res.status(201).json({
       message: "Order stored successfully",
-      orderId: razorpayOrder.id,
       order: newOrder, // Include full MongoDB order data
-      razorpayKey: process.env.RAZORPAY_KEY_ID,
-      amount: totalAmount,
     });
 
   } catch (error) {
-    console.error("❌ Error storing order:", error);
+    console.error(" Error storing order:", error);
     res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
 
-app.get("/razorpay-checkout", authenticateToken, async (req, res) => {
-  try {
-    const { orderId, amount } = req.query;
 
-    if (!orderId || !amount) {
-      return res.status(400).send("Order ID and amount required");
-    }
-    const userId = req.user.id;
-    const options = {
-      amount: parseInt(amount) * 100, // Convert to paisa
-      currency: "INR",
-      receipt: `receipt_${orderId}`,
-      payment_capture: 1,
-      notes: { userId },
-    };
-
-    const razorpayOrder = await razorpay.orders.create(options);
-
-    // Redirect user to Razorpay hosted checkout page
-    res.redirect(`https://api.razorpay.com/v1/checkout?order_id=${razorpayOrder.id}`);
-  } catch (error) {
-    console.error("❌ Error creating Razorpay order:", error);
-    res.status(500).send("Error creating order");
-  }
-});
-
-
-app.post("/verify-payment", authenticateToken, async (req, res) => {
-  try {
-    console.log("📥 Received payment verification request:", req.body);
-
-    // ✅ Extract `paymentId` correctly
-    const { paymentId, orderId, status } = req.body;
-    const userId = req.user.id;
-
-
-    if (!orderId || !paymentId) {
-      console.error("❌ Missing orderId or paymentId");
-      return res.status(400).json({ error: "Order ID and Payment ID are required!" });
-    }
-
-    // ✅ Log extracted values
-    console.log("✅ Extracted Order ID:", orderId);
-    console.log("✅ Extracted Payment ID:", paymentId);
-
-    // ✅ Find the order in the database
-    const order = await Order.findOne({ orderId: orderId, userId });
-
-    if (!order) {
-      console.error("❌ Order not found in database!");
-      return res.status(404).json({ error: "Order not found!" });
-    }
-
-    // ✅ Update Order Status
-    order.status = "Paid";
-    order.paymentId = paymentId;
-    await order.save();
-
-    console.log("✅ Order Updated Successfully:", order);
-
-    return res.status(200).json({ message: "Payment verified successfully", order });
-
-  } catch (error) {
-    console.error("❌ Payment Verification Failed:", error);
-    res.status(500).json({ error: "Payment verification failed", details: error.message });
-  }
-});
 
 
 app.get("/get-order/:orderId", authenticateToken, async (req, res) => {
